@@ -1,0 +1,25 @@
+export const APP_CONFIG = {
+  APP_NAME: 'iHR',
+  API_BASE_URL: 'http://218.208.86.107:4010/api',
+  API_TIMEOUT: 15000,
+  ENDPOINTS: {
+    LOGIN: '/login',
+    GET_PROFILE: '/GetProfile',
+    GET_LEAVE_APPLICATION: '/AppGetLeaveApplication',
+    APP_GET_LEAVE_APPLICATION: '/AppGetLeaveApplication',
+    GET_LEAVE_TYPE: '/GetLeaveType',
+    UPDATE_LEAVE_APPLICATION: '/AppUpdateLeaveApplication',
+    APP_UPDATE_LEAVE_APPLICATION: '/AppUpdateLeaveApplication',
+    GET_WALLET_BALANCE: '/getWalletBalance',
+    GET_WALLET_HISTORY: '/getWalletHistory',
+    UPDATE_WALLET: '/updateWallet',
+    GET_WALLET_CATEGORY: '/getWalletCategory',
+    GET_ALL_WALLET_CATEGORIES: '/getAllWalletCategories',
+    GET_SHOP_DETAILS: '/getShopDetails',
+  },
+  STORAGE_KEYS: {
+    USER_SESSION: 'ihr_user_session',
+    AUTH_TOKEN: 'ihr_auth_token',
+    STAFF_ID: 'ihr_staff_id',
+  },
+};
