@@ -72,13 +72,13 @@ export default function MainLayout() {
 
 const styles = StyleSheet.create({
   logoutBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: '#f41717ff',
   },
   logoutText: {
-    color: '#EF4444',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },

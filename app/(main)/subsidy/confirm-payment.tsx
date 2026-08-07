@@ -7,6 +7,8 @@ import {
   ScrollView,
   Modal,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUpdateWallet, useWalletCategories } from '../../../src/hooks/useSubsidy';
@@ -107,151 +109,156 @@ export default function ConfirmPaymentScreen() {
         type="error"
         onDismiss={() => setToastMessage(null)}
       />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-
-        {/* Read-Only Merchant Header Card (API values only) */}
-        <CustomCard style={styles.merchantCard}>
-          <View style={styles.shopBadge}>
-            <Text style={styles.shopBadgeIcon}>🏬</Text>
-          </View>
-          <Text style={styles.verifiedText}>
-            ✓ VERIFIED MERCHANT
-            {shopDetails.MMS_SHOP_CODE ? ` (SHOP CODE #${shopDetails.MMS_SHOP_CODE})` : ''}
-          </Text>
-          <Text style={styles.shopName}>
-            {shopDetails.SHOP_DESCRIPTION || '—'}
-          </Text>
-          {/* Only show Category/Location if API returned them */}
-          {(shopDetails.Category || shopDetails.Location) ? (
-            <Text style={styles.shopMeta}>
-              {[shopDetails.Category, shopDetails.Location].filter(Boolean).join(' • ')}
-            </Text>
-          ) : null}
-        </CustomCard>
-
-        {/* Payment Entry Card */}
-        <CustomCard style={styles.paymentCard}>
-          <Text style={styles.cardHeading}>Payment Entry Details</Text>
-
-          {/* 1. Amount – empty, numeric keyboard, required */}
-          <CustomInput
-            label="Payment Amount (MYR) *"
-            placeholder="Enter payment amount"
-            value={amountStr}
-            onChangeText={(val) => {
-              // Allow only digits and a single decimal point
-              const cleaned = val.replace(/[^0-9.]/g, '');
-              const parts = cleaned.split('.');
-              const formatted = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
-              setAmountStr(formatted);
-            }}
-            keyboardType="decimal-pad"
-          />
-
-          {/* 2. Wallet Category – dynamic from API */}
-          <CustomSelect
-            label="Wallet Category *"
-            placeholder={loadingCategories ? 'Loading categories...' : 'Select Wallet Category'}
-            options={categoryOptions}
-            selectedValue={selectedCategoryId}
-            onValueChange={setSelectedCategoryId}
-            loading={loadingCategories}
-          />
-
-          {/* 3. Remarks – empty, optional */}
-          <CustomInput
-            label="Remarks"
-            placeholder="Enter remarks (optional)"
-            value={remarks}
-            onChangeText={setRemarks}
-          />
-
-          {/* Summary Info Box */}
-          {isAmountValid && (
-            <View style={styles.subsidyInfoBox}>
-              <Text style={styles.subsidyInfoText}>
-                💳 {formatCurrency(numericAmount)} will be deducted from your Subsidy Wallet balance.
-              </Text>
-            </View>
-          )}
-
-          {/* Confirm Button – disabled until form is valid */}
-          <CustomButton
-            title="Confirm & Deduct Subsidy"
-            onPress={handleConfirmPayment}
-            loading={updateWalletMutation.isPending}
-            disabled={!isFormValid || updateWalletMutation.isPending}
-            size="large"
-            style={[styles.confirmBtn, (!isFormValid) && styles.confirmBtnDisabled]}
-          />
-          <CustomButton
-            title="Cancel"
-            onPress={() => router.replace('/(main)/subsidy' as any)}
-            variant="text"
-            size="small"
-          />
-        </CustomCard>
-
-        {/* Payment Success Receipt Modal */}
-        <Modal
-          visible={paymentSuccess}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => {
-            setPaymentSuccess(false);
-            router.replace('/(main)/subsidy' as any);
-          }}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.modalOverlay}>
-            <CustomCard style={styles.successCard}>
-              <View style={styles.successCircle}>
-                <Text style={styles.checkIcon}>✓</Text>
-              </View>
-              <Text style={styles.successTitle}>Payment Successful!</Text>
-              <Text style={styles.successSubtitle}>Subsidy balance updated</Text>
+          {/* Read-Only Merchant Header Card (API values only) */}
+          <CustomCard style={styles.merchantCard}>
+            <View style={styles.shopBadge}>
+              <Text style={styles.shopBadgeIcon}>🏬</Text>
+            </View>
+            <Text style={styles.verifiedText}>
+              ✓ VERIFIED MERCHANT
+              {shopDetails.MMS_SHOP_CODE ? ` (SHOP CODE #${shopDetails.MMS_SHOP_CODE})` : ''}
+            </Text>
+            <Text style={styles.shopName}>
+              {shopDetails.SHOP_DESCRIPTION || '—'}
+            </Text>
+            {/* Only show Category/Location if API returned them */}
+            {(shopDetails.Category || shopDetails.Location) ? (
+              <Text style={styles.shopMeta}>
+                {[shopDetails.Category, shopDetails.Location].filter(Boolean).join(' • ')}
+              </Text>
+            ) : null}
+          </CustomCard>
 
-              <View style={styles.receiptBox}>
-                {shopDetails.SHOP_DESCRIPTION ? (
-                  <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>Merchant</Text>
-                    <Text style={styles.receiptValue}>{shopDetails.SHOP_DESCRIPTION}</Text>
-                  </View>
-                ) : null}
-                {shopDetails.MMS_SHOP_CODE ? (
-                  <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>Shop Code</Text>
-                    <Text style={styles.receiptValue}>#{shopDetails.MMS_SHOP_CODE}</Text>
-                  </View>
-                ) : null}
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Amount Paid</Text>
-                  <Text style={styles.receiptValue}>{formatCurrency(numericAmount)}</Text>
+          {/* Payment Entry Card */}
+          <CustomCard style={styles.paymentCard}>
+            <Text style={styles.cardHeading}>Payment Entry Details</Text>
+
+            {/* 1. Amount – empty, numeric keyboard, required */}
+            <CustomInput
+              label="Payment Amount (MYR) *"
+              placeholder="Enter payment amount"
+              value={amountStr}
+              onChangeText={(val) => {
+                // Allow only digits and a single decimal point
+                const cleaned = val.replace(/[^0-9.]/g, '');
+                const parts = cleaned.split('.');
+                const formatted = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
+                setAmountStr(formatted);
+              }}
+              keyboardType="decimal-pad"
+            />
+
+            {/* 2. Wallet Category – dynamic from API */}
+            <CustomSelect
+              label="Wallet Category *"
+              placeholder={loadingCategories ? 'Loading categories...' : 'Select Wallet Category'}
+              options={categoryOptions}
+              selectedValue={selectedCategoryId}
+              onValueChange={setSelectedCategoryId}
+              loading={loadingCategories}
+            />
+
+            {/* 3. Remarks – empty, optional */}
+            <CustomInput
+              label="Remarks"
+              placeholder="Enter remarks (optional)"
+              value={remarks}
+              onChangeText={setRemarks}
+            />
+
+            {/* Summary Info Box */}
+            {isAmountValid && (
+              <View style={styles.subsidyInfoBox}>
+                <Text style={styles.subsidyInfoText}>
+                  💳 {formatCurrency(numericAmount)} will be deducted from your Subsidy Wallet balance.
+                </Text>
+              </View>
+            )}
+
+            {/* Confirm Button – disabled until form is valid */}
+            <CustomButton
+              title="Confirm & Deduct Subsidy"
+              onPress={handleConfirmPayment}
+              loading={updateWalletMutation.isPending}
+              disabled={!isFormValid || updateWalletMutation.isPending}
+              size="large"
+              style={[styles.confirmBtn, (!isFormValid) && styles.confirmBtnDisabled]}
+            />
+            <CustomButton
+              title="Cancel"
+              onPress={() => router.replace('/(main)/subsidy' as any)}
+              variant="text"
+              size="small"
+            />
+          </CustomCard>
+
+          {/* Payment Success Receipt Modal */}
+          <Modal
+            visible={paymentSuccess}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => {
+              setPaymentSuccess(false);
+              router.replace('/(main)/subsidy' as any);
+            }}
+          >
+            <View style={styles.modalOverlay}>
+              <CustomCard style={styles.successCard}>
+                <View style={styles.successCircle}>
+                  <Text style={styles.checkIcon}>✓</Text>
                 </View>
-                {remarks ? (
-                  <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>Remarks</Text>
-                    <Text style={styles.receiptValue}>{remarks}</Text>
-                  </View>
-                ) : null}
-              </View>
+                <Text style={styles.successTitle}>Payment Successful!</Text>
+                <Text style={styles.successSubtitle}>Subsidy balance updated</Text>
 
-              <CustomButton
-                title="Back to Wallet Home"
-                onPress={() => {
-                  setPaymentSuccess(false);
-                  router.replace('/(main)/subsidy' as any);
-                }}
-                size="large"
-                style={styles.doneBtn}
-              />
-            </CustomCard>
-          </View>
-        </Modal>
-      </ScrollView>
+                <View style={styles.receiptBox}>
+                  {shopDetails.SHOP_DESCRIPTION ? (
+                    <View style={styles.receiptRow}>
+                      <Text style={styles.receiptLabel}>Merchant</Text>
+                      <Text style={styles.receiptValue}>{shopDetails.SHOP_DESCRIPTION}</Text>
+                    </View>
+                  ) : null}
+                  {shopDetails.MMS_SHOP_CODE ? (
+                    <View style={styles.receiptRow}>
+                      <Text style={styles.receiptLabel}>Shop Code</Text>
+                      <Text style={styles.receiptValue}>#{shopDetails.MMS_SHOP_CODE}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Amount Paid</Text>
+                    <Text style={styles.receiptValue}>{formatCurrency(numericAmount)}</Text>
+                  </View>
+                  {remarks ? (
+                    <View style={styles.receiptRow}>
+                      <Text style={styles.receiptLabel}>Remarks</Text>
+                      <Text style={styles.receiptValue}>{remarks}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <CustomButton
+                  title="Back to Wallet Home"
+                  onPress={() => {
+                    setPaymentSuccess(false);
+                    router.replace('/(main)/subsidy' as any);
+                  }}
+                  size="large"
+                  style={styles.doneBtn}
+                />
+              </CustomCard>
+            </View>
+          </Modal>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -261,9 +268,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9FC',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: SPACING.md,
-    paddingBottom: 40,
+    paddingBottom: SPACING.xl * 2,
     flexGrow: 1,
   },
   merchantCard: {

@@ -6,18 +6,35 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { CustomCard } from '../../src/components/ui/CustomCard';
 import { CustomLoader } from '../../src/components/ui/CustomLoader';
+import { CustomEmptyState } from '../../src/components/ui/CustomEmptyState';
 import { RADIUS, SPACING } from '../../src/constants/theme';
 import { formatDate } from '../../src/utils/formatters';
 
 export default function ProfileScreen() {
-  const { data: profileData, isLoading, isRefetching } = useProfile();
+  const { data: profileData, isLoading, isError, refetch, isRefetching } = useProfile();
 
   if (isLoading && !isRefetching) {
     return <CustomLoader message="Loading Employee Profile..." fullScreen={true} />;
+  }
+
+  if (isError && !profileData) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#0A57A8" />
+        <CustomEmptyState
+          title="Failed to Load Profile"
+          description="A network error occurred while fetching your employee profile."
+          icon="⚠️"
+          actionTitle="Retry Loading"
+          onAction={refetch}
+        />
+      </SafeAreaView>
+    );
   }
 
   const raw = profileData || {};
@@ -51,6 +68,13 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            colors={['#0A57A8']}
+          />
+        }
       >
         {/* Employee Header Badge */}
         <View style={styles.avatarCard}>

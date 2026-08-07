@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import { Logo } from '../../src/components/common/Logo';
@@ -35,12 +36,21 @@ export default function DashboardScreen() {
     user?.User_Name ||
     'N/A';
 
-  const gridCards = [
+  const gridCards: Array<{
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    badge: string;
+    badgeColor: string;
+    route: string;
+    bgAccent: string;
+  }> = [
     {
       id: 'profile',
       title: 'Profile',
       subtitle: 'Employee info',
-      icon: '👤',
+      icon: 'person-outline',
       badge: 'Profile',
       badgeColor: '#0A57A8',
       route: '/(main)/profile',
@@ -50,7 +60,7 @@ export default function DashboardScreen() {
       id: 'leave',
       title: 'Leave',
       subtitle: 'Apply & history',
-      icon: '📝',
+      icon: 'calendar-outline',
       badge: 'Leave',
       badgeColor: '#E31E24',
       route: '/(main)/leave',
@@ -60,7 +70,7 @@ export default function DashboardScreen() {
       id: 'claims',
       title: 'Claims',
       subtitle: 'Reimbursements',
-      icon: '📋',
+      icon: 'document-text-outline',
       badge: 'Claims',
       badgeColor: '#F59E0B',
       route: '/(main)/claims',
@@ -70,7 +80,7 @@ export default function DashboardScreen() {
       id: 'payslip',
       title: 'Payslip',
       subtitle: 'Salary slips',
-      icon: '💰',
+      icon: 'receipt-outline',
       badge: 'Payslip',
       badgeColor: '#0A57A8',
       route: '/(main)/payslip',
@@ -78,11 +88,20 @@ export default function DashboardScreen() {
     },
   ];
 
-  const fullWidthCard = {
+  const fullWidthCard: {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    badge: string;
+    badgeColor: string;
+    route: string;
+    bgAccent: string;
+  } = {
     id: 'subsidy',
     title: 'Subsidy Wallet',
     subtitle: 'Check balance, scan merchant QR code & payment history',
-    icon: '🪙',
+    icon: 'wallet-outline',
     badge: 'QR Scanner',
     badgeColor: '#E31E24',
     route: '/(main)/subsidy',
@@ -138,7 +157,7 @@ export default function DashboardScreen() {
             >
               <View style={styles.cardHeaderRow}>
                 <View style={[styles.cardIconBox, { backgroundColor: item.bgAccent }]}>
-                  <Text style={styles.cardIconText}>{item.icon}</Text>
+                  <Ionicons name={item.icon} size={24} color={item.badgeColor} />
                 </View>
                 <View style={[styles.badgePill, { backgroundColor: item.badgeColor + '18' }]}>
                   <Text style={[styles.badgePillText, { color: item.badgeColor }]}>
@@ -167,7 +186,7 @@ export default function DashboardScreen() {
         >
           <View style={styles.cardHeaderRow}>
             <View style={[styles.cardIconBox, { backgroundColor: fullWidthCard.bgAccent }]}>
-              <Text style={styles.cardIconText}>{fullWidthCard.icon}</Text>
+              <Ionicons name={fullWidthCard.icon} size={24} color={fullWidthCard.badgeColor} />
             </View>
             <View style={[styles.badgePill, { backgroundColor: fullWidthCard.badgeColor + '18' }]}>
               <Text style={[styles.badgePillText, { color: fullWidthCard.badgeColor }]}>

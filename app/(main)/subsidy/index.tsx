@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useWalletBalance } from '../../../src/hooks/useSubsidy';
@@ -47,6 +48,13 @@ export default function SubsidyScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            colors={['#0A57A8']}
+          />
+        }
       >
         {/* 1. Wallet Balance Hero Card */}
         <View style={styles.heroCard}>

@@ -6,15 +6,38 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { CustomCard } from '../../../src/components/ui/CustomCard';
+import { CustomLoader } from '../../../src/components/ui/CustomLoader';
+import { CustomEmptyState } from '../../../src/components/ui/CustomEmptyState';
 import { useLeaveHistory } from '../../../src/hooks/useLeave';
 import { RADIUS, SPACING } from '../../../src/constants/theme';
 
 export default function LeaveDashboardScreen() {
   const router = useRouter();
-  const { data: historyList } = useLeaveHistory();
+  const { data: historyList, isLoading, isError, refetch, isRefetching } = useLeaveHistory();
+
+  if (isLoading && !isRefetching) {
+    return <CustomLoader message="Loading Leave Dashboard..." fullScreen={true} />;
+  }
+
+  if (isError && !historyList) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#0A57A8" />
+        <CustomEmptyState
+          title="Failed to Load Dashboard"
+          description="A network error occurred while fetching your leave details."
+          icon="⚠️"
+          actionTitle="Retry Loading"
+          onAction={refetch}
+        />
+      </SafeAreaView>
+    );
+  }
 
   const dataArray = Array.isArray(historyList) ? historyList : [];
 
@@ -36,6 +59,13 @@ export default function LeaveDashboardScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            colors={['#0A57A8']}
+          />
+        }
       >
         {/* Banner Summary */}
         <View style={styles.summaryBanner}>
@@ -77,7 +107,7 @@ export default function LeaveDashboardScreen() {
           style={styles.navCard}
           icon={
             <View style={[styles.iconBox, { backgroundColor: '#0A57A8' + '15' }]}>
-              <Text style={styles.iconText}>📜</Text>
+              <Ionicons name="time-outline" size={24} color="#0A57A8" />
             </View>
           }
         />
@@ -92,7 +122,7 @@ export default function LeaveDashboardScreen() {
           style={styles.navCard}
           icon={
             <View style={[styles.iconBox, { backgroundColor: '#E31E24' + '15' }]}>
-              <Text style={styles.iconText}>➕</Text>
+              <Ionicons name="add-circle-outline" size={24} color="#E31E24" />
             </View>
           }
         />

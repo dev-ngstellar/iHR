@@ -18,6 +18,7 @@ export const useLeaveHistory = () => {
       return data ? [data] : [];
     },
     enabled: !!staffId,
+    staleTime: 1000 * 60 * 5,
   });
 };
 

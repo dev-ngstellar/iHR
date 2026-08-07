@@ -7,6 +7,8 @@ import {
   ScrollView,
   StatusBar,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApplyLeave, useLeaveTypes } from '../../../src/hooks/useLeave';
@@ -180,12 +182,16 @@ export default function ApplyLeaveScreen() {
         type={toastType}
         onDismiss={() => setToastMessage(null)}
       />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Top Title Banner */}
           <View style={styles.topHeaderCard}>
             <Text style={styles.headerTitle}>Apply For Leave</Text>
@@ -319,7 +325,8 @@ export default function ApplyLeaveScreen() {
               size="medium"
             />
           </CustomCard>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -329,9 +336,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9FC',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: SPACING.md,
-    paddingBottom: 40,
+    paddingBottom: SPACING.xl * 2,
     flexGrow: 1,
   },
   topHeaderCard: {

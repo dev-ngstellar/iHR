@@ -10,6 +10,7 @@ import {
   ViewStyle,
   StyleProp,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING } from '../../constants/theme';
 
 export interface CustomInputProps extends TextInputProps {
@@ -73,8 +74,14 @@ export const CustomInput: React.FC<CustomInputProps> = React.memo(({
             style={styles.rightIconContainer}
             onPress={() => setIsSecure(!isSecure)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={isSecure ? "Show password" : "Hide password"}
+            accessibilityRole="button"
           >
-            <Text style={styles.eyeText}>{isSecure ? '👁️' : '🙈'}</Text>
+            <Ionicons
+              name={isSecure ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={COLORS.textSecondary}
+            />
           </TouchableOpacity>
         ) : rightIcon ? (
           <View style={styles.rightIconContainer}>{rightIcon}</View>

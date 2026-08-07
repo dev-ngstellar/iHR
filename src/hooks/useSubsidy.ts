@@ -20,7 +20,7 @@ export const useWalletBalance = () => {
       };
     },
     enabled: !!staffId,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 60 * 5,
   });
 };
 
@@ -43,6 +43,7 @@ export const useWalletHistory = (historyDate: string) => {
       return data ? [data] : [];
     },
     enabled: !!staffId && !!historyDate,
+    staleTime: 1000 * 60 * 5,
   });
 };
 
