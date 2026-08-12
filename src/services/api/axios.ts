@@ -29,7 +29,7 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => {
     if (__DEV__) {
-      console.log(`[API RESPONSE] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data);
+      console.log(`[API RESPONSE] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data.success);
     }
     return response;
   },

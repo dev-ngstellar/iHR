@@ -9,6 +9,7 @@ import {
   StatusBar,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useWalletBalance } from '../../../src/hooks/useSubsidy';
 import { CustomButton } from '../../../src/components/ui/CustomButton';
@@ -60,7 +61,7 @@ export default function SubsidyScreen() {
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View style={styles.badgeRow}>
-              <Text style={styles.walletIcon}>🪙</Text>
+              <Ionicons name="wallet" size={22} color="#FFFFFF" style={styles.walletIcon} />
               <Text style={styles.walletBadgeText}>SUBSIDY BALANCE</Text>
             </View>
             <TouchableOpacity style={styles.syncBtn} onPress={() => refetch()}>
@@ -81,19 +82,23 @@ export default function SubsidyScreen() {
         <View style={styles.verticalActionContainer}>
           {/* 2. Scan QR Button */}
           <CustomButton
-            title="📷 Scan Merchant QR Code"
+            title=" Scan Merchant QR Code"
             onPress={() => router.push('/(main)/subsidy/scanner' as any)}
             size="large"
             style={styles.scanBtn}
+            leftIcon={<Ionicons name="qr-code" size={22} color="#FFFFFF" style={styles.scanBtnIcon} />}
           />
+          
 
           {/* 3. Wallet History Button */}
+          
           <CustomButton
-            title="📜 View Wallet History"
+            title="View Wallet History"
             onPress={() => router.push('/(main)/subsidy/history' as any)}
             variant="outline"
             size="large"
             style={styles.historyBtn}
+            leftIcon={<Ionicons name="list" size={22} color="#0A57A8" style={styles.scanBtnIcon} />}
           />
         </View>
       </ScrollView>
@@ -134,8 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   walletIcon: {
-    fontSize: 22,
-    marginRight: 6,
+    marginRight: SPACING.sm,
   },
   walletBadgeText: {
     color: 'rgba(255, 255, 255, 0.85)',
@@ -177,6 +181,12 @@ const styles = StyleSheet.create({
   scanBtn: {
     width: '100%',
     backgroundColor: '#0A57A8', // Infoline Primary Blue Button
+  },
+  scanBtnIcon: {
+    alignSelf: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    marginRight: 5,  
   },
   historyBtn: {
     width: '100%',
