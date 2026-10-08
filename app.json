@@ -2,25 +2,25 @@
   "expo": {
     "name": "iHR",
     "slug": "iHR",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "ihr",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ihr.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "monochromeImage": "./assets/adaptive-icon.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.bharath.v.iHR",
-      "versionCode": 3
+      "package": "com.ihr.app",
+      "versionCode": 4
     },
     "web": {
       "output": "static",
