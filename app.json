@@ -2,14 +2,15 @@
   "expo": {
     "name": "iHR",
     "slug": "iHR",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "ihr",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ihr.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,8 +20,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.bharath.v.iHR",
-      "versionCode": 3
+      "package": "com.ihr.app",
+      "versionCode": 4
     },
     "web": {
       "output": "static",
@@ -40,7 +41,15 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
