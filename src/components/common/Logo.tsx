@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Image } from 'react-native';
 import { COLORS } from '../../constants/theme';
 
 interface LogoProps {
@@ -15,7 +15,11 @@ export const Logo: React.FC<LogoProps> = React.memo(({ variant = 'large', showSu
     return (
       <View style={styles.headerContainer}>
         <View style={styles.headerBadge}>
-          <Text style={styles.headerBadgeText}>iHR</Text>
+          <Image
+            source={require('../../../assets/logo_new.jpg')}
+            style={styles.headerLogoImage}
+            resizeMode="contain"
+          />
         </View>
       </View>
     );
@@ -23,14 +27,12 @@ export const Logo: React.FC<LogoProps> = React.memo(({ variant = 'large', showSu
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconBox, isLarge ? styles.iconBoxLarge : styles.iconBoxSmall]}>
-        <View style={styles.iconCircleOuter}>
-          <View style={styles.iconCircleInner}>
-            <Text style={[styles.iconText, isLarge ? styles.iconTextLarge : styles.iconTextSmall]}>
-              iHR
-            </Text>
-          </View>
-        </View>
+      <View style={[styles.logoCard, isLarge ? styles.logoCardLarge : styles.logoCardSmall]}>
+        <Image
+          source={require('../../../assets/logo_new.jpg')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </View>
       <View style={styles.textContainer}>
         <Text style={[styles.brandTitle, isLarge ? styles.brandTitleLarge : styles.brandTitleSmall]}>
@@ -52,54 +54,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
   },
-  iconBox: {
-    borderRadius: 24,
-    backgroundColor: COLORS.primary,
+  logoCard: {
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
-  iconBoxLarge: {
-    width: 90,
-    height: 90,
+  logoCardLarge: {
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    padding: 10,
     marginBottom: 16,
   },
-  iconBoxSmall: {
+  logoCardSmall: {
     width: 44,
     height: 44,
+    borderRadius: 12,
+    padding: 4,
     marginBottom: 6,
   },
-  iconCircleOuter: {
-    width: '80%',
-    height: '80%',
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconCircleInner: {
-    width: '85%',
-    height: '85%',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconText: {
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  iconTextLarge: {
-    fontSize: 22,
-  },
-  iconTextSmall: {
-    fontSize: 12,
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   textContainer: {
     alignItems: 'center',
@@ -131,22 +114,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     marginRight: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  headerBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+  headerLogoImage: {
+    width: 38,
+    height: 22,
   },
 });

@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "ihr",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ihr.app"
@@ -18,10 +17,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.ihr.app",
-      "versionCode": 4
+      "versionCode": 9
     },
     "web": {
       "output": "static",

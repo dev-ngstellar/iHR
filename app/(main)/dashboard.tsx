@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useProfile } from '../../src/hooks/useProfile';
-import { Logo } from '../../src/components/common/Logo';
 import { RADIUS, SPACING } from '../../src/constants/theme';
 
 export default function DashboardScreen() {
@@ -118,7 +117,6 @@ export default function DashboardScreen() {
         {/* Welcome Card with Corporate Blue Background */}
         <View style={styles.welcomeBanner}>
           <View style={styles.headerTopRow}>
-            <Logo variant="header" />
             {loadingProfile ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
@@ -232,7 +230,7 @@ const styles = StyleSheet.create({
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: SPACING.md,
   },
   statusIndicator: {
