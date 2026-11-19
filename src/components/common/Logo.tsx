@@ -19,6 +19,7 @@ export const Logo: React.FC<LogoProps> = React.memo(({ variant = 'large', showSu
             source={require('../../../assets/logo_new.jpg')}
             style={styles.headerLogoImage}
             resizeMode="contain"
+            fadeDuration={0}
           />
         </View>
       </View>

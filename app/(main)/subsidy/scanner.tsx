@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
-  StatusBar,
   Modal,
+  Animated,
+  Easing,
+  Linking,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useRouter, useIsFocused } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { subsidyService } from '../../../src/services/api/subsidy.service';
 import { CustomButton } from '../../../src/components/ui/CustomButton';
@@ -18,27 +23,99 @@ import { RADIUS, SPACING } from '../../../src/constants/theme';
 
 export default function QRScannerScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [torch, setTorch] = useState(false);
   const [loadingShop, setLoadingShop] = useState(false);
   const [fetchedShopDetails, setFetchedShopDetails] = useState<any>(null);
   const [apiErrorReason, setApiErrorReason] = useState<string | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [mountError, setMountError] = useState<string | null>(null);
+  const [cameraKey, setCameraKey] = useState(0);
+
+  // AppState tracking for clean camera lifecycle
+  const [appState, setAppState] = useState<AppStateStatus>((AppState.currentState as AppStateStatus) || 'active');
 
   useEffect(() => {
-    if (!permission?.granted) {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      setAppState(nextState);
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const isCameraActive = isFocused && appState === 'active';
+
+  // Duplicate scan protection lock
+  const scanLockRef = useRef(false);
+
+  // Animated laser scan line that sweeps strictly within the 260x260 scan frame (0..256px)
+  const [scanLineAnim] = useState(() => new Animated.Value(0));
+
+  // Reset scan lock when user returns to screen without active modal
+  useEffect(() => {
+    if (isFocused && !fetchedShopDetails && !apiErrorReason) {
+      scanLockRef.current = false;
+    }
+  }, [isFocused, fetchedShopDetails, apiErrorReason]);
+
+  // Request permission if not determined
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
       requestPermission();
     }
   }, [permission, requestPermission]);
 
-  const handleBarCodeScanned = async ({ data }: { type: string; data: string }) => {
-    if (scanned || loadingShop) return;
+  // Laser animation loop
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+    if (isCameraActive) {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanLineAnim, {
+            toValue: 256,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanLineAnim, {
+            toValue: 0,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    } else {
+      scanLineAnim.setValue(0);
+    }
+
+    return () => {
+      if (animation) animation.stop();
+    };
+  }, [isCameraActive, scanLineAnim]);
+
+  // Barcode Scanner Callback with Duplicate Scan Protection
+  const handleBarCodeScanned = async ({ data, type }: { type: string; data: string }) => {
+    if (scanLockRef.current || scanned || loadingShop) return;
+    scanLockRef.current = true;
     setScanned(true);
     setLoadingShop(true);
     setApiErrorReason(null);
     setFetchedShopDetails(null);
 
-    let shopCode = data.trim();
-    if (!shopCode) shopCode = '20';
+    const shopCode = data ? data.trim() : '';
+    if (!shopCode) {
+      scanLockRef.current = false;
+      setScanned(false);
+      setApiErrorReason('Invalid or unreadable QR code scanned. Please try again.');
+      setLoadingShop(false);
+      return;
+    }
 
     try {
       const res = await subsidyService.getShopDetails(shopCode);
@@ -81,20 +158,29 @@ export default function QRScannerScreen() {
     });
   };
 
-  const handleSimulateScan = () => {
-    handleBarCodeScanned({ type: 'qr', data: '20' });
-  };
-
   const handleScanAgain = () => {
+    scanLockRef.current = false;
     setApiErrorReason(null);
     setFetchedShopDetails(null);
     setScanned(false);
   };
 
-  const handleCancel = () => {
+  const handleBack = () => {
+    scanLockRef.current = false;
     setApiErrorReason(null);
     setFetchedShopDetails(null);
-    router.replace('/(main)/subsidy' as any);
+    setScanned(false);
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(main)/subsidy' as any);
+    }
+  };
+
+  const handleRetryCamera = () => {
+    setMountError(null);
+    setIsCameraReady(false);
+    setCameraKey((prev) => prev + 1);
   };
 
   if (!permission) {
@@ -107,171 +193,272 @@ export default function QRScannerScreen() {
 
   if (!permission.granted) {
     return (
-      <SafeAreaView style={styles.safeAreaDark}>
+      <View style={styles.safeAreaDark}>
         <CustomCard style={styles.permissionCard}>
           <Text style={styles.permissionTitle}>Camera Permission Required</Text>
           <Text style={styles.permissionBody}>
             We need your permission to access the camera in order to scan merchant QR codes.
           </Text>
+          {permission.canAskAgain ? (
+            <CustomButton
+              title="Grant Camera Permission"
+              onPress={requestPermission}
+              size="large"
+              style={styles.permissionBtn}
+            />
+          ) : (
+            <CustomButton
+              title="Open Device Settings"
+              onPress={() => Linking.openSettings()}
+              size="large"
+              style={styles.permissionBtn}
+            />
+          )}
           <CustomButton
-            title="Grant Camera Permission"
-            onPress={requestPermission}
-            size="large"
+            title="Go Back"
+            onPress={handleBack}
+            variant="outline"
+            size="medium"
+            style={styles.permissionBackBtn}
           />
         </CustomCard>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
-        facing="back"
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-      >
-        <View style={styles.overlayContainer}>
-          {/* Top Instruction Banner */}
-          <View style={styles.topBanner}>
-            <Text style={styles.instructionTitle}>Scan Merchant QR Code</Text>
-            <Text style={styles.instructionBody}>
-              Position the QR code inside the frame to pay
-            </Text>
-          </View>
+    <View style={styles.container}>
+      <StatusBar style="light" />
 
-          {/* Center Scan Window with Infoline Blue Frame & Red Laser Line Overlay */}
-          <View style={styles.scanWindow}>
+      {/* 1. Base Layer: Full-Screen Live Camera Preview */}
+      {permission.granted && isCameraActive && (
+        <CameraView
+          key={'camera-instance-' + cameraKey}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          enableTorch={torch}
+          active={isCameraActive}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr'],
+          }}
+          onCameraReady={() => {
+            setIsCameraReady(true);
+            setMountError(null);
+          }}
+          onMountError={(error) => {
+            setMountError(error?.message || 'Camera failed to initialize');
+          }}
+          onBarcodeScanned={scanned || loadingShop ? undefined : handleBarCodeScanned}
+        />
+      )}
+
+      {/* 2. Top Safe-Area Header Bar (pinned at top, zIndex: 10) */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 16) }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBack}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Text style={styles.backArrow}>←</Text>
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>QR Scanner</Text>
+
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            style={[styles.torchButton, torch && styles.torchButtonActive]}
+            onPress={() => setTorch((prev) => !prev)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+          >
+            <Text style={styles.torchIcon}>{torch ? '🔦' : '💡'}</Text>
+            <Text style={styles.torchText}>{torch ? 'ON' : 'OFF'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => Linking.openSettings()}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+          >
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 3. Full-Screen 3-Row Flex Overlay Mask (Starts Below Header, Covers 100% of remaining screen) */}
+      <View style={styles.overlayContainer} pointerEvents="box-none">
+        {/* Top Mask */}
+        <View style={styles.topMask} pointerEvents="none" />
+
+        {/* Middle Row: Left Mask, 260x260 Viewfinder, Right Mask */}
+        <View style={styles.middleRow} pointerEvents="box-none">
+          <View style={styles.sideMask} pointerEvents="none" />
+
+          {/* Center 260x260 Viewfinder */}
+          <View style={styles.viewfinder}>
+            {/* 4 Infoline Blue Corner Brackets */}
             <View style={[styles.corner, styles.topLeft]} />
             <View style={[styles.corner, styles.topRight]} />
             <View style={[styles.corner, styles.bottomLeft]} />
             <View style={[styles.corner, styles.bottomRight]} />
 
-            {/* Red Scan Line Overlay */}
-            <View style={styles.redScanLine} />
-          </View>
+            {/* Animated Red Laser Scan Line strictly bounded inside 0..260px */}
+            <Animated.View
+              style={[
+                styles.redScanLine,
+                {
+                  transform: [{ translateY: scanLineAnim }],
+                },
+              ]}
+            />
 
-          {/* Bottom Actions */}
-          <View style={styles.bottomBanner}>
-            {loadingShop ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.loadingText}>Fetching merchant shop details...</Text>
+            {/* Initialization spinner */}
+            {!isCameraReady && !mountError && (
+              <View style={styles.initializingBox} pointerEvents="none">
+                <ActivityIndicator size="small" color="#0A57A8" />
               </View>
-            ) : (
-              <>
-                <CustomButton
-                  title="⚡ Quick Simulation (Test QR)"
-                  onPress={handleSimulateScan}
-                  variant="outline"
-                  size="medium"
-                  style={styles.simBtn}
-                  textStyle={{ color: '#FFFFFF' }}
-                />
-                {scanned && !fetchedShopDetails && !apiErrorReason && (
-                  <TouchableOpacity
-                    style={styles.rescanBtn}
-                    onPress={handleScanAgain}
-                  >
-                    <Text style={styles.rescanText}>Tap to Scan Again</Text>
-                  </TouchableOpacity>
-                )}
-              </>
+            )}
+
+            {/* Mount Error Fallback */}
+            {mountError && (
+              <View style={styles.mountErrorBox}>
+                <Text style={styles.mountErrorTitle}>Camera Error</Text>
+                <Text style={styles.mountErrorMsg}>{mountError}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={handleRetryCamera}>
+                  <Text style={styles.retryBtnText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
-          {/* 1. SUCCESS: Merchant Details Modal Popup before Payment */}
-          <Modal
-            visible={!!fetchedShopDetails}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={handleScanAgain}
-          >
-            <View style={styles.modalOverlay}>
-              {fetchedShopDetails && (
-                <CustomCard style={styles.merchantCard}>
-                  <View style={styles.shopBadgeCircle}>
-                    <Text style={styles.shopBadgeIcon}>🏬</Text>
-                  </View>
-                  <Text style={styles.verifiedTag}>✓ VERIFIED MERCHANT OUTLET</Text>
-                  <Text style={styles.merchantName}>
-                    {fetchedShopDetails.SHOP_DESCRIPTION || fetchedShopDetails.Merchant_Name || 'Merchant Outlet'}
-                  </Text>
-                  
-                  <View style={styles.merchantInfoGrid}>
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Shop Code:</Text>
-                      <Text style={styles.infoValue}>
-                        #{fetchedShopDetails.MMS_SHOP_CODE || fetchedShopDetails.Shop_Code}
-                      </Text>
-                    </View>
-                    {fetchedShopDetails.Category && (
-                      <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Category:</Text>
-                        <Text style={styles.infoValue}>{fetchedShopDetails.Category}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <CustomButton
-                    title="Continue to Payment"
-                    onPress={handleContinueToPayment}
-                    size="large"
-                    style={styles.continueBtn}
-                  />
-
-                  <CustomButton
-                    title="Scan Different QR Code"
-                    onPress={handleScanAgain}
-                    variant="text"
-                    size="medium"
-                  />
-                </CustomCard>
-              )}
-            </View>
-          </Modal>
-
-          {/* 2. ERROR: getShopDetails API Failure Popup */}
-          <Modal
-            visible={!!apiErrorReason}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={handleScanAgain}
-          >
-            <View style={styles.modalOverlay}>
-              <CustomCard style={styles.errorCard}>
-                <View style={styles.errorCircle}>
-                  <Text style={styles.errorIcon}>⚠️</Text>
-                </View>
-
-                <Text style={styles.errorTitle}>Unable to load merchant details.</Text>
-                
-                <View style={styles.reasonBox}>
-                  <Text style={styles.reasonHeader}>Reason:</Text>
-                  <Text style={styles.reasonBody}>{apiErrorReason}</Text>
-                </View>
-
-                <View style={styles.errorButtonRow}>
-                  <CustomButton
-                    title="Scan Again"
-                    onPress={handleScanAgain}
-                    size="medium"
-                    style={styles.scanAgainBtn}
-                  />
-                  <CustomButton
-                    title="Cancel"
-                    onPress={handleCancel}
-                    variant="outline"
-                    size="medium"
-                    style={styles.cancelBtn}
-                  />
-                </View>
-              </CustomCard>
-            </View>
-          </Modal>
+          <View style={styles.sideMask} pointerEvents="none" />
         </View>
-      </CameraView>
-    </SafeAreaView>
+
+        {/* Bottom Mask: Clear Unclipped Instructions & Actions */}
+        <View
+          style={[
+            styles.bottomMask,
+            { paddingBottom: Math.max(insets.bottom, 24) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <Text style={styles.instructionTitle}>Position QR Code in Frame</Text>
+          <Text style={styles.instructionBody}>
+            Align the QR code within the frame to scan
+          </Text>
+
+          {loadingShop && (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+              <Text style={styles.loadingText}>Fetching merchant shop details...</Text>
+            </View>
+          )}
+
+          {scanned && !loadingShop && !fetchedShopDetails && !apiErrorReason && (
+            <TouchableOpacity
+              style={styles.rescanBtn}
+              onPress={handleScanAgain}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.rescanText}>Tap to Scan Again</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* 4. SUCCESS: Merchant Details Modal Popup before Payment */}
+      <Modal
+        visible={!!fetchedShopDetails}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleScanAgain}
+      >
+        <View style={styles.modalOverlay}>
+          {fetchedShopDetails && (
+            <CustomCard style={styles.merchantCard}>
+              <View style={styles.shopBadgeCircle}>
+                <Text style={styles.shopBadgeIcon}>🏬</Text>
+              </View>
+              <Text style={styles.verifiedTag}>✓ VERIFIED MERCHANT OUTLET</Text>
+              <Text style={styles.merchantName}>
+                {fetchedShopDetails.SHOP_DESCRIPTION || fetchedShopDetails.Merchant_Name || 'Merchant Outlet'}
+              </Text>
+              
+              <View style={styles.merchantInfoGrid}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Shop Code:</Text>
+                  <Text style={styles.infoValue}>
+                    #{fetchedShopDetails.MMS_SHOP_CODE || fetchedShopDetails.Shop_Code}
+                  </Text>
+                </View>
+                {fetchedShopDetails.Category && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Category:</Text>
+                    <Text style={styles.infoValue}>{fetchedShopDetails.Category}</Text>
+                  </View>
+                )}
+              </View>
+
+              <CustomButton
+                title="Continue to Payment"
+                onPress={handleContinueToPayment}
+                size="large"
+                style={styles.continueBtn}
+              />
+
+              <CustomButton
+                title="Scan Different QR Code"
+                onPress={handleScanAgain}
+                variant="text"
+                size="medium"
+              />
+            </CustomCard>
+          )}
+        </View>
+      </Modal>
+
+      {/* 5. ERROR: getShopDetails API Failure Popup */}
+      <Modal
+        visible={!!apiErrorReason}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleScanAgain}
+      >
+        <View style={styles.modalOverlay}>
+          <CustomCard style={styles.errorCard}>
+            <View style={styles.errorCircle}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+            </View>
+
+            <Text style={styles.errorTitle}>Unable to load merchant details.</Text>
+            
+            <View style={styles.reasonBox}>
+              <Text style={styles.reasonHeader}>Reason:</Text>
+              <Text style={styles.reasonBody}>{apiErrorReason}</Text>
+            </View>
+
+            <View style={styles.errorButtonRow}>
+              <CustomButton
+                title="Scan Again"
+                onPress={handleScanAgain}
+                size="medium"
+                style={styles.scanAgainBtn}
+              />
+              <CustomButton
+                title="Cancel"
+                onPress={handleBack}
+                variant="outline"
+                size="medium"
+                style={styles.cancelBtn}
+              />
+            </View>
+          </CustomCard>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -294,56 +481,137 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   permissionCard: {
+    width: '100%',
+    maxWidth: 360,
     padding: SPACING.xl,
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.xl,
   },
   permissionTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#1F2937',
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   permissionBody: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: SPACING.lg,
+    lineHeight: 20,
+  },
+  permissionBtn: {
+    width: '100%',
+    backgroundColor: '#0A57A8',
+    marginBottom: SPACING.sm,
+  },
+  permissionBackBtn: {
+    width: '100%',
+  },
+  headerBar: {
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingRight: 10,
+  },
+  backArrow: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    marginRight: 6,
+    fontWeight: '700',
+  },
+  backText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  torchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  torchButtonActive: {
+    backgroundColor: '#0A57A8',
+    borderColor: '#FFFFFF',
+  },
+  torchIcon: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  torchText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  settingsButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsIcon: {
+    fontSize: 16,
   },
   overlayContainer: {
     flex: 1,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.xl,
   },
-  topBanner: {
-    backgroundColor: 'rgba(10, 87, 168, 0.85)',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    marginTop: 20,
+  topMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
-  instructionTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
+  middleRow: {
+    flexDirection: 'row',
+    height: 260,
   },
-  instructionBody: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    marginTop: 2,
+  sideMask: {
+    flex: 1,
+    height: 260,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
-  scanWindow: {
+  viewfinder: {
     width: 260,
     height: 260,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
     position: 'relative',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   corner: {
     position: 'absolute',
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderColor: '#0A57A8',
   },
   topLeft: {
@@ -375,20 +643,78 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   redScanLine: {
-    width: '90%',
-    height: 3,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
     backgroundColor: '#E31E24',
     shadowColor: '#E31E24',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
+    shadowOpacity: 0.9,
+    shadowRadius: 5,
     elevation: 4,
   },
-  bottomBanner: {
-    width: '100%',
-    paddingHorizontal: SPACING.xl,
+  initializingBox: {
+    position: 'absolute',
     alignItems: 'center',
-    marginBottom: 20,
+    justifyContent: 'center',
+  },
+  mountErrorBox: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.md,
+  },
+  mountErrorTitle: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  mountErrorMsg: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  retryBtn: {
+    backgroundColor: '#0A57A8',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.full,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  bottomMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+  },
+  instructionTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  instructionBody: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   loadingBox: {
     flexDirection: 'row',
@@ -397,6 +723,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: RADIUS.full,
+    marginTop: 20,
   },
   loadingText: {
     color: '#FFFFFF',
@@ -404,21 +731,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 10,
   },
-  simBtn: {
-    width: '100%',
-    borderColor: '#0A57A8',
-    backgroundColor: 'rgba(10, 87, 168, 0.4)',
-  },
   rescanBtn: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   rescanText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   modalOverlay: {

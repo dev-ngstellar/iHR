@@ -6,8 +6,8 @@ import {
   FlatList,
   RefreshControl,
   SafeAreaView,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useLeaveHistory } from '../../../src/hooks/useLeave';
 import { CustomCard } from '../../../src/components/ui/CustomCard';
 import { CustomLoader } from '../../../src/components/ui/CustomLoader';
@@ -22,24 +22,75 @@ export default function LeaveHistoryScreen() {
     return <CustomLoader message="Loading Leave Applications..." fullScreen={true} />;
   }
 
-  if (isError && (!historyList || (Array.isArray(historyList) && historyList.length === 0))) {
+  // Safely extract the data array whether it's directly an array or wrapped in an envelope
+  const rawList = Array.isArray(historyList)
+    ? historyList
+    : (historyList as any)?.Data ||
+      (historyList as any)?.data ||
+      (historyList as any)?.LeaveApplications ||
+      (historyList as any)?.result ||
+      [];
+
+  // Filter to valid leave application items (must be an object and not an empty wrapper)
+  const dataArray: any[] = Array.isArray(rawList)
+    ? rawList.filter((item: any) => {
+        if (!item || typeof item !== 'object') return false;
+        const hasLeaveField =
+          item.Leave_Application_ID !== undefined ||
+          item.LeaveApplicationID !== undefined ||
+          item.LeaveID !== undefined ||
+          item.Leave_ID !== undefined ||
+          item.ApplicationID !== undefined ||
+          item.LeaveTypeName !== undefined ||
+          item.LeaveType !== undefined ||
+          item.leaveType !== undefined ||
+          item.FromDate !== undefined ||
+          item.fromDate !== undefined ||
+          item.Reason !== undefined ||
+          item.reason !== undefined ||
+          item.ReferenceNo !== undefined ||
+          item.referenceNo !== undefined;
+
+        if (!hasLeaveField && ('Success' in item || 'success' in item)) {
+          return false;
+        }
+        return true;
+      })
+    : [];
+
+  if (isError && dataArray.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
         <CustomEmptyState
           title="Failed to Load Leave History"
           description="A network error occurred while fetching your leave applications."
           icon="⚠️"
           actionTitle="Retry Loading"
-          onAction={refetch}
+          onAction={() => {
+            void refetch();
+          }}
         />
       </SafeAreaView>
     );
   }
 
-  const dataArray = Array.isArray(historyList) ? historyList : [];
+  const safeString = (val: any, fallback = 'N/A'): string => {
+    if (val === null || val === undefined || val === '') return fallback;
+    if (typeof val === 'object') {
+      if (typeof val.LeaveTypeName === 'string') return val.LeaveTypeName;
+      if (typeof val.LeaveType === 'string') return val.LeaveType;
+      if (typeof val.name === 'string') return val.name;
+      if (typeof val.label === 'string') return val.label;
+      if (typeof val.value === 'string' || typeof val.value === 'number') return String(val.value);
+      return fallback;
+    }
+    return String(val);
+  };
 
-  const getStatusBadge = (statusStr?: string) => {
-    const status = String(statusStr || 'Confirmed').toLowerCase();
+  const getStatusBadge = (statusVal?: any) => {
+    const rawStatus = safeString(statusVal, 'Confirmed');
+    const status = rawStatus.toLowerCase();
     if (status.includes('approved') || status.includes('confirmed')) {
       return { label: 'Confirmed', bg: COLORS.statusApprovedBg, text: COLORS.statusApprovedText };
     }
@@ -49,13 +100,83 @@ export default function LeaveHistoryScreen() {
     return { label: 'Pending', bg: COLORS.statusPendingBg, text: COLORS.statusPendingText };
   };
 
-  const renderItem = ({ item }: { item: any }) => {
-    const leaveType = item.LeaveTypeName || item.LeaveType || item.leaveType || 'Leave';
-    const referenceNo = item.ReferenceNo || item.referenceNo || 'N/A';
-    const reason = item.Reason || item.reason || 'N/A';
-    const fromDate = item.FromDate || item.fromDate ? formatDate(item.FromDate || item.fromDate) : 'N/A';
-    const toDate = item.ToDate || item.toDate ? formatDate(item.ToDate || item.toDate) : 'N/A';
-    const statusBadge = getStatusBadge(item.LeaveStatus || item.Status || item.status);
+  const getItemKey = (item: any, index: number): string => {
+    if (!item || typeof item !== 'object') {
+      return `leave-item-${index}`;
+    }
+    const rawId =
+      item.Leave_Application_ID ??
+      item.LeaveApplicationID ??
+      item.ApplicationID ??
+      item.Application_ID ??
+      item.LeaveID ??
+      item.Leave_ID ??
+      item.id ??
+      item.ID ??
+      item.ReferenceNo ??
+      item.referenceNo ??
+      item.RefNo ??
+      item.Reference_No;
+
+    if (rawId !== undefined && rawId !== null && String(rawId).trim() !== '' && String(rawId).trim() !== 'N/A') {
+      return `leave-${String(rawId)}-${index}`;
+    }
+    return `leave-item-${index}`;
+  };
+
+  const renderItem = ({ item, index }: { item: any; index: number }) => {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+
+    const rawType =
+      item.LeaveTypeName ??
+      item.LeaveType ??
+      item.leaveType ??
+      item.Leave_Type_Name ??
+      item.Leave_Type;
+    const leaveType = safeString(rawType, 'Leave');
+
+    const rawRef =
+      item.ReferenceNo ??
+      item.referenceNo ??
+      item.RefNo ??
+      item.Reference_No ??
+      item.Leave_Application_ID ??
+      item.LeaveApplicationID;
+    const referenceNo = safeString(rawRef, 'N/A');
+
+    const rawReason = item.Reason ?? item.reason ?? item.Remarks ?? item.remarks;
+    const reason = safeString(rawReason, 'N/A');
+
+    const rawFrom =
+      item.FromDate ??
+      item.fromDate ??
+      item.From_Date ??
+      item.LeaveDate ??
+      item.leaveDate;
+    const fromDate =
+      typeof rawFrom === 'string' && rawFrom.trim() !== ''
+        ? formatDate(rawFrom)
+        : safeString(rawFrom, 'N/A');
+
+    const rawTo =
+      item.ToDate ??
+      item.toDate ??
+      item.To_Date ??
+      rawFrom;
+    const toDate =
+      typeof rawTo === 'string' && rawTo.trim() !== ''
+        ? formatDate(rawTo)
+        : safeString(rawTo, 'N/A');
+
+    const rawStatus =
+      item.LeaveStatus ??
+      item.Status ??
+      item.status ??
+      item.ApprovalStatus ??
+      item.Leave_Status;
+    const statusBadge = getStatusBadge(rawStatus);
 
     return (
       <CustomCard style={styles.historyCard}>
@@ -94,16 +215,18 @@ export default function LeaveHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A57A8" />
+      <StatusBar style="light" />
       <FlatList
         data={dataArray}
-        keyExtractor={(item, index) => String(item.id || item.ReferenceNo || item.LeaveID || index)}
+        keyExtractor={getItemKey}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
+            onRefresh={() => {
+              void refetch();
+            }}
             colors={['#0A57A8']}
           />
         }
@@ -113,7 +236,9 @@ export default function LeaveHistoryScreen() {
             description="You currently have no leave application records."
             icon="📝"
             actionTitle="Refresh List"
-            onAction={refetch}
+            onAction={() => {
+              void refetch();
+            }}
           />
         }
       />

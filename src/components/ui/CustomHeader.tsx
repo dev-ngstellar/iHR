@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Logo } from '../common/Logo';
@@ -9,6 +10,7 @@ export interface CustomHeaderProps {
   title: string;
   showBackButton?: boolean;
   onBackPress?: () => void;
+  leftAction?: React.ReactNode;
   rightAction?: React.ReactNode;
 }
 
@@ -16,6 +18,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = React.memo(({
   title,
   showBackButton = false,
   onBackPress,
+  leftAction,
   rightAction,
 }) => {
   const router = useRouter();
@@ -33,10 +36,12 @@ export const CustomHeader: React.FC<CustomHeaderProps> = React.memo(({
 
   return (
     <View style={[styles.headerWrapper, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A57A8" />
+      <StatusBar style="light" />
       <View style={styles.headerBar}>
         <View style={styles.leftSection}>
-          {showBackButton ? (
+          {leftAction ? (
+            leftAction
+          ) : showBackButton ? (
             <TouchableOpacity
               style={styles.backButton}
               onPress={handleBack}

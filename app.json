@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ihr.app"
+      "bundleIdentifier": "com.ihr.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera to scan merchant QR codes."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,6 +20,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-icon.png"
       },
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "predictiveBackGestureEnabled": false,
       "package": "com.ihr.app",
       "versionCode": 9
@@ -47,7 +53,14 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan merchant QR codes."
+        }
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
